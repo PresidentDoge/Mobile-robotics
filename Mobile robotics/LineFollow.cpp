@@ -34,8 +34,10 @@ int main(int argc, char* argv[])
 		const float STOPPING_DIST = 0.25;
 		const float SAFE_DIST = 0.5;
 		const float FOLLOW_DIST = 0.45;
+
 		float sensorArray[15];
-		float *sensor;
+		float* sensor;
+		
 		PROGRAM_RUNNING = true;
 		bool followingLeft = false;
 		bool followingRight = false;
@@ -44,9 +46,13 @@ int main(int argc, char* argv[])
 
 		/* Create handles */
 
+		//beacon handles
+		simxGetObjectHandle(clientID, "beacon", &beaconHandle, simx_opmode_blocking);
+		simxGetDistanceHandle(clientID, "beacon", &distanceHandle, simx_opmode_blocking);
+		simxReadDistance(clientID, distanceHandle, distance, simx_opmode_streaming);
 		//motor handles
-		int leftMotor = simxGetObjectHandle(clientID, "Pioneer_p3dx_leftMotor", &leftmotorHandle, simx_opmode_oneshot_wait);
-		int rightMotor = simxGetObjectHandle(clientID, "Pioneer_p3dx_rightMotor", &rightmotorHandle, simx_opmode_oneshot_wait);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_leftMotor", &leftmotorHandle, simx_opmode_oneshot_wait);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_rightMotor", &rightmotorHandle, simx_opmode_oneshot_wait);
 		//sensor handles
 		int so0 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor0", &senorHandle[0], simx_opmode_blocking);
 		int so1 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor1", &senorHandle[1], simx_opmode_blocking);
@@ -70,7 +76,7 @@ int main(int argc, char* argv[])
 		//followState edgeFollowState = IDLE;
 
 		// Start Motors
-		//motorControl(speed, speed);
+		motorControl(speed, speed);
 
 		/* Main loop */
 
@@ -81,8 +87,7 @@ int main(int argc, char* argv[])
 
 			for (int i = 0; i < INT_MAX; i++)
 			{
-				sensor = fillarr(sensorArray, 16); //create array of sonar reading
-				printf("%f \n", sensor[0]);
+				printf("%F \n", findBeacon());
 			}
 	
 		}
@@ -109,6 +114,7 @@ int main(int argc, char* argv[])
 
 	return(0);
 }
+
 
 
 void motorControl(float leftMotor, float rightMotor)
@@ -141,3 +147,15 @@ void wait(int time)
 {
 	extApi_sleepMs(time);
 }
+
+simxFloat findBeacon()
+{
+	double threshold = 7;
+
+	simxReadDistance(clientID, distanceHandle, distance, simx_opmode_buffer);
+	simxGetObjectPosition(clientID, beaconHandle, -1, beaconPosition, simx_opmode_blocking);
+
+	return std::sqrt((distance[0] * distance[0]) + (distance[1] * distance[1]) + (distance[2] * distance[2]));
+
+}
+

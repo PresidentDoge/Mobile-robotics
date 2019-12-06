@@ -3,14 +3,19 @@
 #include <vector>
 
 int clientID;
+int beaconHandle;
+int distanceHandle;
 int leftmotorHandle;
 int rightmotorHandle;
 int senorHandle[15];
+
+simxFloat beaconPosition[3];
 
 bool PROGRAM_RUNNING;
 
 simxUChar detectionState[1];
 simxFloat detectedPoint[3];
+simxFloat distance[3];
 
 // Control variables
 bool followingLeft;
@@ -27,4 +32,4 @@ float getSensorReading(int sensor);
 float * fillarr(float arr[], int length);
 void wait(int time);
 
- 
+simxFloat findBeacon();
