@@ -5,7 +5,7 @@
 int clientID;
 int leftmotorHandle;
 int rightmotorHandle;
-int senorHandle[4];
+int senorHandle[15];
 
 bool PROGRAM_RUNNING;
 
