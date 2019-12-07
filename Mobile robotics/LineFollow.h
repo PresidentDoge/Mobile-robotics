@@ -10,14 +10,12 @@ int rightmotorHandle;
 int senorHandle[15];
 
 simxFloat beaconPosition[3];
-
-bool PROGRAM_RUNNING;
-
 simxUChar detectionState[1];
 simxFloat detectedPoint[3];
 simxFloat distance[3];
 
 // Control variables
+bool PROGRAM_RUNNING;
 bool followingLeft;
 bool followingRight;
 int currentTime;

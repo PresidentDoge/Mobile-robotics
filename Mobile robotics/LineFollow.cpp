@@ -28,21 +28,30 @@ int main(int argc, char* argv[])
 		// Sim start
 		simxStartSimulation(clientID, simx_opmode_oneshot_wait); //starts simulation without having to tab to vrep
 
-		//variables
+		/* variables */
+
+		//random seed
 		srand(time(NULL));
+
+		//time
+		int timeElapsed = 0;
+		simxInt starttime = extApi_getTimeInMs();
+		
+		//initialize consts speed/distances
 		const float speed = 1;
 		const float STOPPING_DIST = 0.25;
 		const float SAFE_DIST = 0.5;
 		const float FOLLOW_DIST = 0.45;
 
-		float sensorArray[15];
+		//initialize array
+		float sensorArray[15]; 
 		float* sensor;
 		
+		//boolean logic
 		PROGRAM_RUNNING = true;
 		bool followingLeft = false;
 		bool followingRight = false;
-		int timeElapsed = 0;
-		simxInt starttime = extApi_getTimeInMs();
+		
 
 		/* Create handles */
 
@@ -54,22 +63,21 @@ int main(int argc, char* argv[])
 		simxGetObjectHandle(clientID, "Pioneer_p3dx_leftMotor", &leftmotorHandle, simx_opmode_oneshot_wait);
 		simxGetObjectHandle(clientID, "Pioneer_p3dx_rightMotor", &rightmotorHandle, simx_opmode_oneshot_wait);
 		//sensor handles
-		int so0 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor0", &senorHandle[0], simx_opmode_blocking);
-		int so1 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor1", &senorHandle[1], simx_opmode_blocking);
-		int so2 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor2", &senorHandle[2], simx_opmode_blocking);
-		int so3 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor3", &senorHandle[3], simx_opmode_blocking);
-		int so4 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor4", &senorHandle[4], simx_opmode_blocking);
-		int so5 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor5", &senorHandle[5], simx_opmode_blocking);
-		int so6 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor6", &senorHandle[6], simx_opmode_blocking);
-		int so7 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor7", &senorHandle[7], simx_opmode_blocking);
-		int so8 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor8", &senorHandle[8], simx_opmode_blocking);
-		int so9 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor9", &senorHandle[9], simx_opmode_blocking);
-		int so10 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor10", &senorHandle[10], simx_opmode_blocking);
-		int so11 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor11", &senorHandle[11], simx_opmode_blocking);
-		int so12 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor12", &senorHandle[12], simx_opmode_blocking);
-		int so13 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor13", &senorHandle[13], simx_opmode_blocking);
-		int so14 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor14", &senorHandle[14], simx_opmode_blocking);
-		int so15 = simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor15", &senorHandle[15], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor0", &senorHandle[0], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor1", &senorHandle[1], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor2", &senorHandle[2], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor3", &senorHandle[3], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor4", &senorHandle[4], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor5", &senorHandle[5], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor6", &senorHandle[6], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor7", &senorHandle[7], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor8", &senorHandle[8], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor9", &senorHandle[9], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor10", &senorHandle[10], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor11", &senorHandle[11], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor12", &senorHandle[12], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor13", &senorHandle[13], simx_opmode_blocking);
+		simxGetObjectHandle(clientID, "Pioneer_p3dx_ultrasonicSensor15", &senorHandle[15], simx_opmode_blocking);
 
 		//Initialize states
 		FSM state = WANDER;
@@ -85,9 +93,15 @@ int main(int argc, char* argv[])
 
 			sensor = fillarr(sensorArray, 16); //create array of sonar reading
 
-			for (int i = 0; i < INT_MAX; i++)
+			/*for (int i = 0; i < INT_MAX; i++)
 			{
 				printf("%F \n", findBeacon());
+			}*/
+
+			/* AVOID */
+			if (getSensorReading(3) < SAFE_DIST && getSensorReading(4))
+			{
+				printf("OH LORD GONNA CRASH \n");
 			}
 	
 		}
@@ -134,7 +148,6 @@ float getSensorReading(int sensor)
 
 
 //This function exists incase I want to poll all 16 sonar sensors at once and create an array of readings
-//Using getSonarReading() for now
 float * fillarr(float arr[], int length) {
 	for (int i = 0; i < length; ++i) {
 		arr[i] = getSensorReading(i); //Sensor readings
