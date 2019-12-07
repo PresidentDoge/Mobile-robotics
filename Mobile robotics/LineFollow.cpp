@@ -133,7 +133,6 @@ float getSensorReading(int sensor)
 }
 
 
-
 //This function exists incase I want to poll all 16 sonar sensors at once and create an array of readings
 //Using getSonarReading() for now
 float * fillarr(float arr[], int length) {
