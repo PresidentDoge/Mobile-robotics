@@ -9,6 +9,7 @@
 #include <time.h>
 #include <math.h> 
 
+
 extern "C" {
 #include "extApi.h"
 }
@@ -44,15 +45,7 @@ int main(int argc, char* argv[])
 		float* sensor;
 		//boolean logic
 		PROGRAM_RUNNING = true;
-		bool followingLeft = false;
-		bool followingRight = false;
-		bool followingWall = false;
-
-		//new
-		
-
-		//Initialize states
-		state = HOME;
+		bool LEFT_HOME = false;
 
 		// Start Motors
 		motorControl(SPEED, SPEED);
@@ -61,240 +54,8 @@ int main(int argc, char* argv[])
 
 		while(PROGRAM_RUNNING)
 		{
-
-			sensor = fillarr(sensorArray, 16); //create array of sonar reading
-
-			switch (state)
-			{
-			case HOME:
-
-				/*HOME STATE - Explore map until something is found*/
-				//printf("STATE: HOME \n");
-
-				//get current time
-				currentTime = extApi_getTimeInMs();
-				timeElapsed = currentTime - starttime;
-				//printf("%i \n", timeElapsed);
-
-				//init boolean
-				followingLeft = false;
-				followingRight = false;
-
-				//If wall is detected infront of robot...
-				if (frontSensors() < SAFE_DIST)
-				{
-					motorControl(0, 0);
-
-					starttime = extApi_getTimeInMs();
-
-					int random = rand() % 2;
-
-					if (random == 0 && leftSensors() > SAFE_DIST) //turn left
-					{
-						/*motorControl(-1, 1);
-						motorControl(SPEED, SPEED);*/
-						followingLeft = true;
-						state = AVOID;
-
-					}
-					if (random == 1 && rightSensors() > SAFE_DIST) //turn right
-					{
-						/*motorControl(1, -1);
-						motorControl(SPEED, SPEED);*/
-						followingRight = true;
-						state = AVOID;
-
-					}
-				}
-
-				// If no wall is found - turn randomly
-				if (timeElapsed > 10000 && frontSensors() >= 5)
-				{
-
-					int random = rand() % 2;
-
-					if (random == 0)
-					{
-						printf("Random turn (time) \n");
-						motorControl(-1, 1);
-						extApi_sleepMs(1000);
-						motorControl(SPEED, SPEED);
-						starttime = extApi_getTimeInMs(); //reset time
-						break;
-					}
-					if (random == 1)
-					{
-						printf("Random turn (time) \n");
-						motorControl(1, -1);
-						extApi_sleepMs(1000);
-						motorControl(SPEED, SPEED);
-						starttime = extApi_getTimeInMs(); //reset time
-						break;
-					}
-				}
-
-				// If side sensors detect a wall...
-				if (leftSensors() < SAFE_DIST || rightSensors() < SAFE_DIST)
-				{
-					state = FOLLOW;
-					printf("STATE CHANGE: FOLLOW \n");
-				}
-
-			case FOLLOW:
-
-				/*FOLLOW STATE - Wall is found, begin following wall*/
-				//printf("STATE: FOLLOW \n");
-
-				//get current time
-				currentTime = extApi_getTimeInMs();
-				timeElapsed = currentTime - starttime;
-
-				//Left sensor detected wall
-				if (leftSensors() < SAFE_DIST)
-				{
-					followingLeft = true;
-					followingRight = false;
-					followingWall = true;
-
-					//printf("WALL DETECTED LEFT \n");
-
-					while (followingWall == true)
-					{
-						motorControl(SPEED, SPEED);
-
-						if (leftSensors() < STOPPING_DIST)
-						{
-							motorControl(1, -1); //Turn RIGHT away from wall
-							starttime = extApi_getTimeInMs();
-
-							printf("TOO CLOSE - Turning RIGHT \n");
-						}
-
-						if (leftSensors() >= FOLLOW_DIST)
-						{
-							motorControl(-1, 1); //Turn LEFT towards wall
-							starttime = extApi_getTimeInMs();
-
-							printf("FAR OUT - Turning LEFT \n");
-						}
-
-						if (frontSensors() <= SAFE_DIST)
-						{
-							followingWall = false;
-							starttime = extApi_getTimeInMs();
-							printf("STATE CHANGE: AVOID \n");
-							state = AVOID;
-						}
-
-						if (/*followingLeft == false && */frontSensors() > SAFE_DIST&& leftSensors() > SAFE_DIST&& timeElapsed > 10000)
-						{
-							followingWall = false;
-							starttime = extApi_getTimeInMs();
-							printf("STATE CHANGE: HOME \n");
-							state = HOME;
-						}
-
-					}
-				}
-
-				//Right sensor detected wall
-				if (rightSensors() < SAFE_DIST)
-				{
-
-					followingLeft = false;
-					followingRight = true;
-					followingWall = true;
-
-					//printf("WALL DETECTED RIGHT \n");
-
-					while (followingWall == true)
-					{
-
-						motorControl(SPEED, SPEED);
-
-						if (rightSensors() < STOPPING_DIST)
-						{
-							motorControl(-1, 1); //Turn LEFT away from wall
-							starttime = extApi_getTimeInMs();
-
-							printf("TOO CLOSE - Turning LEFT \n");
-						}
-
-						if (rightSensors() >= FOLLOW_DIST)
-						{
-							motorControl(1, -1); //Turn RIGHT towards wall
-							starttime = extApi_getTimeInMs();
-
-							printf("FAR OUT - Turning RIGHT \n");
-						}
-
-						if (frontSensors() <= SAFE_DIST)
-						{
-							followingWall = false;
-							starttime = extApi_getTimeInMs();
-							printf("STATE CHANGE: AVOID \n");
-							state = AVOID;
-						}
-
-						if (/*followingRight == false && */frontSensors() > SAFE_DIST&& rightSensors() > SAFE_DIST&& timeElapsed > 10000)
-						{
-							followingWall = false;
-							starttime = extApi_getTimeInMs();
-							printf("STATE CHANGE: HOME \n");
-							state = HOME;
-						}
-
-					}
-				}
-
-			case AVOID:
-
-				//printf("STATE: AVOID \n");
-
-				if (frontSensors() < SAFE_DIST && frontSensors() > STOPPING_DIST)
-				{
-					motorControl(0, 0);
-
-					if (followingRight == true && leftSensors() > SAFE_DIST) //turn left
-					{
-						motorControl(-1, 1);
-						motorControl(SPEED, SPEED);
-						printf("AVOIDNG LEFT \n");
-						//state = FOLLOW;
-					}
-					if (followingLeft == true && rightSensors() > SAFE_DIST) //turn right
-					{
-						motorControl(1, -1);
-						motorControl(SPEED, SPEED);
-						printf("AVOIDNG RIGHT \n");
-						//state = FOLLOW;
-					}
-				}
-
-				if (frontSensors() < STOPPING_DIST)
-				{
-					followingLeft = false;
-					followingRight = false;
-					motorControl(-1, -1); //reverse
-				}
-
-				if (frontSensors() > SAFE_DIST && leftSensors() < SAFE_DIST)
-				{
-					followingLeft = true;
-					followingRight = false;
-					state = FOLLOW;
-					printf("STATE CHANGE: FOLLOW \n");
-				}
-
-				if (frontSensors() > SAFE_DIST && rightSensors() < SAFE_DIST)
-				{
-					followingLeft = true;
-					followingRight = false;
-					state = FOLLOW;
-					printf("STATE CHANGE: FOLLOW \n");
-				}
-
-			}
+			printf("%f : %f \n", leftSensors(), rightSensors());
+			//if (leftSensors() < ? ? && rightSensors() < ? ? ) LEFT_HOME = true;
 	
 		}
 
@@ -409,19 +170,3 @@ simxFloat findBeacon()
 
 	return std::sqrt((distance[0] * distance[0]) + (distance[1] * distance[1]) + (distance[2] * distance[2]));
 }
-
-//
-//double updatePID(const double setPoint, double processValue, double lastReading)
-//{
-//	/* PID */
-//	int starttime;
-//	currentTime = extApi_getTimeInMs();
-//	int timeElapsed = currentTime - starttime;
-//
-//	error = processValue - setPoint;
-//	pTerm = error;
-//	iTerm = iTerm + error * (timeElapsed/1000);
-//	dTerm = (error - lastReading) / (timeElapsed/1000);
-//
-//	return (pGain * pTerm) + (iGain * iTerm) + (dGain * dTerm);
-//}

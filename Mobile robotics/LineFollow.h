@@ -16,17 +16,6 @@ const double SAFE_DIST = 0.5f;
 const double FOLLOW_DIST = 0.4f;
 const double MAX_DIST = 5.0f;
 
-//PID
-double error;
-
-double pGain = 1;
-double iGain = 0.0001;
-double dGain = 90;
-
-double pTerm;
-double iTerm;
-double dTerm;
-
 simxFloat beaconPosition[3];
 simxUChar detectionState[1];
 simxFloat detectedPoint[3];
@@ -38,7 +27,7 @@ bool followingLeft;
 bool followingRight;
 int currentTime;
 
-enum FSM{HOME, FOLLOW, FIND_HOME, AVOID};
+enum FSM{HOME, FIND_BEACON, FIND_HOME, AVOID};
 FSM state;
 
 void motorControl(float leftMotor, float rightMotor);
