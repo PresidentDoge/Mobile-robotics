@@ -38,13 +38,19 @@ int main(int argc, char* argv[])
 		simxInt starttime = extApi_getTimeInMs();
 		
 		//initialize consts speed/distances
+		srand(time(NULL));
 		const float speed = 1;               // Default motor speed 
 		const float STOPPING_DIST = 0.25;    // Minimum distance, takes evasive action
 		const float SAFE_DIST = 0.5;         // Maximum distance threshold of evasive actions 
 		const float FOLLOW_DIST = 0.45;      // Distance maintained from the wall while following
 
-		const float MIN_DIST = -1.0f;        // Minimum error distance 
-		const float MAX_DIST = 1.0f;         // Maximum error distance
+		const float MIN_DIST = -0.5f;        // Minimum error distance 
+		const float MAX_DIST = 0.5f;         // Maximum error distance
+
+		float frontSensor;
+		float rearSensor;
+		float leftSensor;
+		float rightSensor;
 
 		//initialize sensor array
 		float sensorArray[15]; 
@@ -55,6 +61,7 @@ int main(int argc, char* argv[])
 		bool followingLeft = false;
 		bool followingRight = false;
 		bool followingWall = false;
+		bool centering = false;
 		
 
 		/* Create handles */
@@ -92,92 +99,343 @@ int main(int argc, char* argv[])
 
 		/* Main loop */
 
-		while(PROGRAM_RUNNING)
+		while (PROGRAM_RUNNING)
 		{
+			sensor = fillarr(sensorArray, 4); //create array of sonar reading - unused
 
-			sensor = fillarr(sensorArray, 16); //create array of sonar reading
-
-
-			/*for (int i = 0; i < INT_MAX; i++)
-			{
-				printf("%F \n", findBeacon());
-			}*/
-
-			
-
-			
 			switch (state)
 			{
-			case WANDER:  //Search for wall
-				
-				motorControl(speed, speed);
+			case WANDER:
 
-				// If front sensors detect wall
-				if (getMean(3, 4) < FOLLOW_DIST) 
+				/*WANDER STATE - Explore map until something is found*/
+				//printf("STATE: WANDER \n");
+
+				//get current time
+				currentTime = extApi_getTimeInMs();
+				timeElapsed = currentTime - starttime;
+				//printf("%i \n", timeElapsed);
+
+				//init boolean
+				followingLeft = false;
+				followingRight = false;
+
+				//If wall is detected infront of robot...
+				if (getSensorReading(3) < SAFE_DIST)
 				{
-					int randomNumber = rand();
+					motorControl(0, 0);
 
-					if (randomNumber == 0)
+					starttime = extApi_getTimeInMs();
+
+					int random = rand() % 2;
+
+					if (random == 0 && getSensorReading(0) > SAFE_DIST) //turn left
 					{
-						//motorControl(-speed, speed);
+						/*motorControl(-1, 1);
+						motorControl(speed, speed);*/
 						followingLeft = true;
-						state = FOLLOW;
-					}
+						state = AVOID;
 
-					if (randomNumber == 1)
+					}
+					if (random == 1 && getSensorReading(7) > SAFE_DIST) //turn right
 					{
-						//motorControl(speed, -speed);
+						/*motorControl(1, -1);
+						motorControl(speed, speed);*/
 						followingRight = true;
-						state = FOLLOW;
+						state = AVOID;
+
 					}
 				}
 
-				//if left sensors detect wall
-				if (getMean(0, 15) < FOLLOW_DIST)
+				// If no wall is found - turn randomly
+				if (timeElapsed > 10000 && getSensorReading(3) >= 5)
+				{
+
+					int random = rand() % 2;
+
+					if (random == 0)
+					{
+						printf("Random turn (time) \n");
+						motorControl(-1, 1);
+						extApi_sleepMs(1000);
+						motorControl(speed, speed);
+						starttime = extApi_getTimeInMs(); //reset time
+						break;
+					}
+					if (random == 1)
+					{
+						printf("Random turn (time) \n");
+						motorControl(1, -1);
+						extApi_sleepMs(1000);
+						motorControl(speed, speed);
+						starttime = extApi_getTimeInMs(); //reset time
+						break;
+					}
+				}
+
+				// If side sensors detect a wall...
+				if (getSensorReading(0) < SAFE_DIST || getSensorReading(7) < SAFE_DIST)
+				{
+					state = FOLLOW;
+					printf("STATE CHANGE: FOLLOW \n");
+				}
+
+			case FOLLOW:
+
+				/*FOLLOW STATE - Wall is found, begin following wall*/
+				//printf("STATE: FOLLOW \n");
+
+				bool followingWall;
+
+				//get current time
+				currentTime = extApi_getTimeInMs();
+				timeElapsed = currentTime - starttime;
+
+
+				//Left sensor detected wall
+				if (getSensorReading(0) < SAFE_DIST)
 				{
 					followingLeft = true;
-					state = FOLLOW;
+					followingRight = false;
+					followingWall = true;
+					centering = false;
+
+					//printf("WALL DETECTED LEFT \n");
+
+					while (followingWall == true)
+					{
+						motorControl(speed, speed);
+
+						frontSensor = (getSensorReading(3) + getSensorReading(4)) / 2;
+						rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
+
+						//Logic for finding the center of the walls
+						if (frontSensor - rearSensor > MIN_DIST&& frontSensor - rearSensor < MAX_DIST)
+						{
+							//followingLeft = false;
+							followingRight = false;
+							followingWall = false;
+							centering = true;
+							state = CENTER_WALL;
+							printf("STATE CHANGE: CENTER_WALL \n");
+						}
+
+						if (getSensorReading(0) < STOPPING_DIST)
+						{
+							motorControl(1, -1); //Turn RIGHT away from wall
+							starttime = extApi_getTimeInMs();
+
+							printf("TOO CLOSE - Turning RIGHT \n");
+						}
+
+						if (getSensorReading(0) >= FOLLOW_DIST)
+						{
+							motorControl(-1, 1); //Turn LEFT towards wall
+							starttime = extApi_getTimeInMs();
+
+							printf("FAR OUT - Turning LEFT \n");
+						}
+
+						if (getSensorReading(3) <= SAFE_DIST)
+						{
+							followingWall = false;
+							starttime = extApi_getTimeInMs();
+							printf("STATE CHANGE: AVOID \n");
+							state = AVOID;
+						}
+
+						if (/*followingLeft == false && */getSensorReading(3) > SAFE_DIST&& getSensorReading(0) > SAFE_DIST&& timeElapsed > 10000)
+						{
+							followingWall = false;
+							starttime = extApi_getTimeInMs();
+							printf("STATE CHANGE: WANDER \n");
+							state = WANDER;
+						}
+
+					}
 				}
 
-				//if right sensors detect wall
-				if (getMean(7, 8) < FOLLOW_DIST)
+				//Right sensor detected wall
+				if (getSensorReading(7) < SAFE_DIST)
 				{
+
+					followingLeft = false;
 					followingRight = true;
-					state = FOLLOW;
+					followingWall = true;
+					centering = false;
+
+					//printf("WALL DETECTED RIGHT \n");
+
+					while (followingWall == true)
+					{
+						motorControl(speed, speed);
+
+						frontSensor = (getSensorReading(3) + getSensorReading(4)) / 2;
+						rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
+
+						//Logic for finding the center of the walls
+						if (frontSensor - rearSensor > MIN_DIST&& frontSensor - rearSensor < MAX_DIST)
+						{
+							followingLeft = false;
+							//followingRight = false;
+							//followingWall = false;
+							centering = true;
+							state = CENTER_WALL;
+							printf("STATE CHANGE: CENTER_WALL \n");
+						}
+
+						if (getSensorReading(7) < STOPPING_DIST)
+						{
+							motorControl(-1, 1); //Turn LEFT away from wall
+							starttime = extApi_getTimeInMs();
+
+							printf("TOO CLOSE - Turning LEFT \n");
+						}
+
+						if (getSensorReading(7) >= FOLLOW_DIST)
+						{
+							motorControl(1, -1); //Turn RIGHT towards wall
+							starttime = extApi_getTimeInMs();
+
+							printf("FAR OUT - Turning RIGHT \n");
+						}
+
+						if (getSensorReading(3) <= SAFE_DIST)
+						{
+							followingWall = false;
+							starttime = extApi_getTimeInMs();
+							printf("STATE CHANGE: AVOID \n");
+							state = AVOID;
+						}
+
+						if (/*followingRight == false && */getSensorReading(3) > SAFE_DIST&& getSensorReading(7) > SAFE_DIST&& timeElapsed > 10000)
+						{
+							followingWall = false;
+							starttime = extApi_getTimeInMs();
+							printf("STATE CHANGE: WANDER \n");
+							state = WANDER;
+						}
+
+					}
 				}
-			
-			case AVOID: //Avoid wall
 
-				break;
-			case FOLLOW: //Follow wall
+			case AVOID:
 
-				break;
-			case CENTER_WALL: //Find Center of wall
+				/* FRONT SENSOR LOGIC */
 
-				break;
-			case CENTER_ROOM: //Find center of room
+				if (getSensorReading(3) < SAFE_DIST && getSensorReading(3) > STOPPING_DIST)
+				{
+					motorControl(0, 0);
 
-				break;
+					if (followingRight == true && getSensorReading(0) > SAFE_DIST) //turn left
+					{
+						motorControl(-1, 1);
+						motorControl(speed, speed);
+						printf("AVOIDNG LEFT \n");
+						//state = FOLLOW;
+					}
+					if (followingLeft == true && getSensorReading(7) > SAFE_DIST) //turn right
+					{
+						motorControl(1, -1);
+						motorControl(speed, speed);
+						printf("AVOIDNG RIGHT \n");
+						//state = FOLLOW;
+					}
+				}
+
+				if (getSensorReading(3) < STOPPING_DIST)
+				{
+					followingLeft = false;
+					followingRight = false;
+					motorControl(-1, -1); //reverse
+				}
+
+
+				if (getSensorReading(3) > SAFE_DIST&& getSensorReading(0) < SAFE_DIST)
+				{
+					followingLeft = true;
+					followingRight = false;
+					state = FOLLOW;
+					printf("STATE CHANGE: FOLLOW \n");
+				}
+
+				if (getSensorReading(3) > SAFE_DIST&& getSensorReading(2) < SAFE_DIST)
+				{
+					followingLeft = true;
+					followingRight = false;
+					state = FOLLOW;
+					printf("STATE CHANGE: FOLLOW \n");
+				}
+
+			case CENTER_WALL:
+				
+				followingWall = false;
+
+				while (centering && followingLeft)
+				{
+					printf("centering .... \n ");
+
+					leftSensor = (getSensorReading(0) + getSensorReading(15)) / 2;
+					rightSensor = (getSensorReading(7) + getSensorReading(8)) / 2;
+					frontSensor = (getSensorReading(3) + getSensorReading(4)) / 2;
+					rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
+
+					if (leftSensor - rightSensor > MIN_DIST&& leftSensor - rightSensor < MAX_DIST)
+					{
+						motorControl(speed, -speed);
+					}
+				}
+				
+				
+				//if (followingLeft)
+				//{
+				//	leftSensor = getSensorReading(0);
+				//	rightSensor = getSensorReading(7);
+
+				//	motorControl(speed, -speed);
+
+				//	if (frontSensor - rearSensor > MIN_DIST&& frontSensor - rearSensor < MAX_DIST)
+				//	{
+				//		printf("turning to find center of room \n");
+				//		motorControl(speed, -speed);
+				//	}
+
+				//	if (leftSensor - rightSensor > MIN_DIST&& leftSensor - rightSensor < MAX_DIST)
+				//	{
+				//		followingLeft = false;
+				//		followingRight = false;
+				//		followingWall = false;
+
+				//		motorControl(speed, -speed);
+				//	}
+				//	
+				//}
+				//
+				//if (followingRight)
+				//{
+				//	leftSensor = getSensorReading(0);
+				//	rightSensor = getSensorReading(7);
+
+				//	if (frontSensor - rearSensor > MIN_DIST&& frontSensor - rearSensor < MAX_DIST)
+				//	{
+				//		printf("turning to find center of room \n");
+				//		motorControl(-speed, speed);
+				//	}
+
+				//	if (leftSensor - rightSensor > MIN_DIST&& leftSensor - rightSensor < MAX_DIST)
+				//	{
+				//		//followingLeft = false;
+				//		//followingRight = false;
+				//		//followingWall = false;
+
+				//		motorControl(-speed, speed);
+				//	}
+				//}
+
+			case CENTER_ROOM:
+
+				printf("Center room \n");
+
 			}
-
-			
-
-
-			
-
-
-			
-
-			
-			
-
-			//check if robot is at the center of the two walls
-			/*if (x < 1 && x > -1)
-			{
-				printf("true \n");
-			}
-			else printf("false \n");
-	        */
 		}
 
 		// Stop the motors
