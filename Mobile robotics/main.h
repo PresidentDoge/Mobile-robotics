@@ -26,9 +26,11 @@ followState edgeFollowState;
 FSM state;
 
 void motorControl(float leftMotor, float rightMotor);
+void leftHeading(int heading);
+void rightHeading(int heading);
 float getSensorReading(int sensor);
 float * fillarr(float arr[], int length);
-void wait(int time);
+void waitms(int time);
 float getMean(float sensor1, float sensor2);
 float getError(float sensor1, float sensor2);
 

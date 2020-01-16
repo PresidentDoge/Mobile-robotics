@@ -2,11 +2,14 @@
 // simRemoteApi.start(19999)
 //
 
+#define _USE_MATH_DEFINES
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "main.h"
 #include <iostream>
 #include <time.h>
+#include <math.h>
 
 extern "C" {
 #include "extApi.h"
@@ -197,7 +200,7 @@ int main(int argc, char* argv[])
 					followingLeft = true;
 					followingRight = false;
 					followingWall = true;
-					centering = false;
+					//centering = false;
 
 					//printf("WALL DETECTED LEFT \n");
 
@@ -209,7 +212,7 @@ int main(int argc, char* argv[])
 						rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
 
 						//Logic for finding the center of the walls
-						if (frontSensor - rearSensor > MIN_DIST&& frontSensor - rearSensor < MAX_DIST)
+						if (((frontSensor - rearSensor) > MIN_DIST) && ((frontSensor - rearSensor) < MAX_DIST))
 						{
 							//followingLeft = false;
 							followingRight = false;
@@ -243,7 +246,7 @@ int main(int argc, char* argv[])
 							state = AVOID;
 						}
 
-						if (/*followingLeft == false && */getSensorReading(3) > SAFE_DIST&& getSensorReading(0) > SAFE_DIST&& timeElapsed > 10000)
+						if (/*followingLeft == false && */getSensorReading(3) > SAFE_DIST && getSensorReading(0) > SAFE_DIST && timeElapsed > 10000)
 						{
 							followingWall = false;
 							starttime = extApi_getTimeInMs();
@@ -261,7 +264,7 @@ int main(int argc, char* argv[])
 					followingLeft = false;
 					followingRight = true;
 					followingWall = true;
-					centering = false;
+					//centering = false;
 
 					//printf("WALL DETECTED RIGHT \n");
 
@@ -273,11 +276,11 @@ int main(int argc, char* argv[])
 						rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
 
 						//Logic for finding the center of the walls
-						if (frontSensor - rearSensor > MIN_DIST&& frontSensor - rearSensor < MAX_DIST)
+						if (((frontSensor - rearSensor) > MIN_DIST) && ((frontSensor - rearSensor) < MAX_DIST))
 						{
 							followingLeft = false;
-							//followingRight = false;
-							//followingWall = false;
+							followingRight = false;
+							followingWall = false;
 							centering = true;
 							state = CENTER_WALL;
 							printf("STATE CHANGE: CENTER_WALL \n");
@@ -307,7 +310,7 @@ int main(int argc, char* argv[])
 							state = AVOID;
 						}
 
-						if (/*followingRight == false && */getSensorReading(3) > SAFE_DIST&& getSensorReading(7) > SAFE_DIST&& timeElapsed > 10000)
+						if (/*followingRight == false && */getSensorReading(3) > SAFE_DIST && getSensorReading(7) > SAFE_DIST && timeElapsed > 10000)
 						{
 							followingWall = false;
 							starttime = extApi_getTimeInMs();
@@ -365,71 +368,30 @@ int main(int argc, char* argv[])
 					state = FOLLOW;
 					printf("STATE CHANGE: FOLLOW \n");
 				}
+				break;
 
 			case CENTER_WALL:
-				
+
 				followingWall = false;
+				followingLeft = false;
+				followingRight = false;
 
-				while (centering && followingLeft)
+				while (centering)
 				{
-					printf("centering .... \n ");
-
 					leftSensor = (getSensorReading(0) + getSensorReading(15)) / 2;
 					rightSensor = (getSensorReading(7) + getSensorReading(8)) / 2;
 					frontSensor = (getSensorReading(3) + getSensorReading(4)) / 2;
 					rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
 
-					if (leftSensor - rightSensor > MIN_DIST&& leftSensor - rightSensor < MAX_DIST)
+					rightHeading(90);
+
+					if (((leftSensor - rightSensor) > MIN_DIST) && ((leftSensor - rightSensor) < MAX_DIST))
 					{
-						motorControl(speed, -speed);
+						//centering = false;
 					}
 				}
 				
-				
-				//if (followingLeft)
-				//{
-				//	leftSensor = getSensorReading(0);
-				//	rightSensor = getSensorReading(7);
-
-				//	motorControl(speed, -speed);
-
-				//	if (frontSensor - rearSensor > MIN_DIST&& frontSensor - rearSensor < MAX_DIST)
-				//	{
-				//		printf("turning to find center of room \n");
-				//		motorControl(speed, -speed);
-				//	}
-
-				//	if (leftSensor - rightSensor > MIN_DIST&& leftSensor - rightSensor < MAX_DIST)
-				//	{
-				//		followingLeft = false;
-				//		followingRight = false;
-				//		followingWall = false;
-
-				//		motorControl(speed, -speed);
-				//	}
-				//	
-				//}
-				//
-				//if (followingRight)
-				//{
-				//	leftSensor = getSensorReading(0);
-				//	rightSensor = getSensorReading(7);
-
-				//	if (frontSensor - rearSensor > MIN_DIST&& frontSensor - rearSensor < MAX_DIST)
-				//	{
-				//		printf("turning to find center of room \n");
-				//		motorControl(-speed, speed);
-				//	}
-
-				//	if (leftSensor - rightSensor > MIN_DIST&& leftSensor - rightSensor < MAX_DIST)
-				//	{
-				//		//followingLeft = false;
-				//		//followingRight = false;
-				//		//followingWall = false;
-
-				//		motorControl(-speed, speed);
-				//	}
-				//}
+				break;
 
 			case CENTER_ROOM:
 
@@ -461,8 +423,6 @@ int main(int argc, char* argv[])
 	return(0);
 }
 
-
-
 void motorControl(float leftMotor, float rightMotor)
 {
 	// targetVelocity is rad/s for a revolute joint
@@ -470,6 +430,21 @@ void motorControl(float leftMotor, float rightMotor)
 	simxSetJointTargetVelocity(clientID, rightmotorHandle, rightMotor, simx_opmode_blocking);
 }
 
+void leftHeading(int heading)
+{
+	simxSetJointTargetVelocity(clientID, leftmotorHandle, (heading * M_1_PI / 180), simx_opmode_blocking);
+	simxSetJointTargetVelocity(clientID, rightmotorHandle, -(heading * M_1_PI / 180), simx_opmode_blocking);
+	printf("Turning");
+	waitms(5000);
+}
+
+void rightHeading(int heading)
+{
+	simxSetJointTargetVelocity(clientID, leftmotorHandle, -(heading * M_1_PI / 180), simx_opmode_blocking);
+	simxSetJointTargetVelocity(clientID, rightmotorHandle, (heading * M_1_PI / 180), simx_opmode_blocking);
+	printf("Turning");
+	waitms(5000);
+}
 
 float getSensorReading(int sensor)
 {
@@ -487,7 +462,7 @@ float * fillarr(float arr[], int length) {
 	return arr;
 }
 
-void wait(int time)
+void waitms(int time)
 {
 	extApi_sleepMs(time);
 }
