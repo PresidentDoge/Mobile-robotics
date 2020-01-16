@@ -47,8 +47,8 @@ int main(int argc, char* argv[])
 		const float SAFE_DIST = 0.5;         // Maximum distance threshold of evasive actions 
 		const float FOLLOW_DIST = 0.45;      // Distance maintained from the wall while following
 
-		const float MIN_DIST = -0.5f;        // Minimum error distance 
-		const float MAX_DIST = 0.5f;         // Maximum error distance
+		const float MIN_DIST = -0.25f;        // Minimum error distance 
+		const float MAX_DIST = 0.25f;         // Maximum error distance
 
 		float frontSensor;
 		float rearSensor;
@@ -99,6 +99,12 @@ int main(int argc, char* argv[])
 
 		// Start Motors
 		motorControl(speed, speed);
+
+		//Initialize sensor readings
+		leftSensor = (getSensorReading(0) + getSensorReading(15)) / 2;
+		rightSensor = (getSensorReading(7) + getSensorReading(8)) / 2;
+		frontSensor = (getSensorReading(3) + getSensorReading(4)) / 2;
+		rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
 
 		/* Main loop */
 
@@ -176,7 +182,7 @@ int main(int argc, char* argv[])
 				}
 
 				// If side sensors detect a wall...
-				if (getSensorReading(0) < SAFE_DIST || getSensorReading(7) < SAFE_DIST)
+				if ((getSensorReading(0) < SAFE_DIST || getSensorReading(7) < SAFE_DIST) && !centering)
 				{
 					state = FOLLOW;
 					printf("STATE CHANGE: FOLLOW \n");
@@ -353,7 +359,7 @@ int main(int argc, char* argv[])
 				}
 
 
-				if (getSensorReading(3) > SAFE_DIST&& getSensorReading(0) < SAFE_DIST)
+				if ((getSensorReading(3) > SAFE_DIST) && (getSensorReading(0) < SAFE_DIST) && !centering)
 				{
 					followingLeft = true;
 					followingRight = false;
@@ -361,7 +367,7 @@ int main(int argc, char* argv[])
 					printf("STATE CHANGE: FOLLOW \n");
 				}
 
-				if (getSensorReading(3) > SAFE_DIST&& getSensorReading(2) < SAFE_DIST)
+				if ((getSensorReading(3) > SAFE_DIST) && (getSensorReading(2) < SAFE_DIST) && !centering)
 				{
 					followingLeft = true;
 					followingRight = false;
@@ -384,10 +390,13 @@ int main(int argc, char* argv[])
 					rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
 
 					rightHeading(90);
+					printf("left sensor - %f : right sensor - %f : error - %f \n", leftSensor, rightSensor, (leftSensor - rightSensor));
 
 					if (((leftSensor - rightSensor) > MIN_DIST) && ((leftSensor - rightSensor) < MAX_DIST))
 					{
-						//centering = false;
+						centering = false;
+						state = CENTER_ROOM;
+						printf("STATE CHANGE: CENTER_ROOM");
 					}
 				}
 				
@@ -395,7 +404,7 @@ int main(int argc, char* argv[])
 
 			case CENTER_ROOM:
 
-				printf("Center room \n");
+				
 
 			}
 		}
@@ -432,16 +441,16 @@ void motorControl(float leftMotor, float rightMotor)
 
 void leftHeading(int heading)
 {
-	simxSetJointTargetVelocity(clientID, leftmotorHandle, (heading * M_1_PI / 180), simx_opmode_blocking);
-	simxSetJointTargetVelocity(clientID, rightmotorHandle, -(heading * M_1_PI / 180), simx_opmode_blocking);
+	simxSetJointTargetVelocity(clientID, leftmotorHandle, -(heading * M_1_PI / 180), simx_opmode_blocking);
+	simxSetJointTargetVelocity(clientID, rightmotorHandle, (heading * M_1_PI / 180), simx_opmode_blocking);
 	printf("Turning");
 	waitms(5000);
 }
 
 void rightHeading(int heading)
 {
-	simxSetJointTargetVelocity(clientID, leftmotorHandle, -(heading * M_1_PI / 180), simx_opmode_blocking);
-	simxSetJointTargetVelocity(clientID, rightmotorHandle, (heading * M_1_PI / 180), simx_opmode_blocking);
+	simxSetJointTargetVelocity(clientID, leftmotorHandle, (heading * M_1_PI / 180), simx_opmode_blocking);
+	simxSetJointTargetVelocity(clientID, rightmotorHandle, -(heading * M_1_PI / 180), simx_opmode_blocking);
 	printf("Turning");
 	waitms(5000);
 }
