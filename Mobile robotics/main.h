@@ -20,9 +20,7 @@ bool followingLeft;
 bool followingRight;
 int currentTime;
 
-enum FSM{WANDER, AVOID, FOLLOW, CENTER_WALL, CENTER_ROOM};
-enum followState{LEFT_CLOSE, LEFT_FAR, RIGHT_CLOSE, RIGHT_FAR, L_R_CLOSE, FOLLOW_WALL, L_R_FAR, IDLE};
-followState edgeFollowState;
+enum FSM{WANDER, AVOID, FOLLOW, CENTER_WALL, CENTER_ROOM, STOP_AND_WAIT};
 FSM state;
 
 void motorControl(float leftMotor, float rightMotor);

@@ -64,8 +64,7 @@ int main(int argc, char* argv[])
 		bool followingLeft = false;
 		bool followingRight = false;
 		bool followingWall = false;
-		bool centering = false;
-		
+		bool centering = false;		
 
 		/* Create handles */
 
@@ -110,7 +109,7 @@ int main(int argc, char* argv[])
 
 		while (PROGRAM_RUNNING)
 		{
-			sensor = fillarr(sensorArray, 4); //create array of sonar reading - unused
+			sensor = fillarr(sensorArray, 15); //create array of sonar reading - unused
 
 			switch (state)
 			{
@@ -356,6 +355,8 @@ int main(int argc, char* argv[])
 					followingLeft = false;
 					followingRight = false;
 					motorControl(-1, -1); //reverse
+					printf("REVERSING \n");
+					state = FOLLOW;
 				}
 
 
@@ -378,10 +379,6 @@ int main(int argc, char* argv[])
 
 			case CENTER_WALL:
 
-				followingWall = false;
-				followingLeft = false;
-				followingRight = false;
-
 				while (centering)
 				{
 					leftSensor = (getSensorReading(0) + getSensorReading(15)) / 2;
@@ -389,14 +386,19 @@ int main(int argc, char* argv[])
 					frontSensor = (getSensorReading(3) + getSensorReading(4)) / 2;
 					rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
 
-					rightHeading(90);
-					printf("left sensor - %f : right sensor - %f : error - %f \n", leftSensor, rightSensor, (leftSensor - rightSensor));
-
 					if (((leftSensor - rightSensor) > MIN_DIST) && ((leftSensor - rightSensor) < MAX_DIST))
 					{
 						centering = false;
 						state = CENTER_ROOM;
 						printf("STATE CHANGE: CENTER_ROOM");
+					}
+					else if(followingLeft){
+						rightHeading(90);
+						//printf("left sensor - %f : right sensor - %f : error - %f \n", leftSensor, rightSensor, (leftSensor - rightSensor));
+					}
+					else if (followingRight) {
+						leftHeading(90);
+						//printf("left sensor - %f : right sensor - %f : error - %f \n", leftSensor, rightSensor, (leftSensor - rightSensor));
 					}
 				}
 				
@@ -404,8 +406,35 @@ int main(int argc, char* argv[])
 
 			case CENTER_ROOM:
 
-				
+				motorControl(speed, speed);
 
+				printf("rear left sensor - %f : rear right sensor - %f : error - %f \n", getSensorReading(12), getSensorReading(11), (getSensorReading(11) - getSensorReading(12)));
+				printf("left sensor - %f : right sensor - %f : error - %f \n", leftSensor, rightSensor, (leftSensor - rightSensor));
+
+				if ((leftSensor - rightSensor) > MIN_DIST)
+				{
+					motorControl(-speed, speed);
+				}
+				if ((leftSensor - rightSensor) < MAX_DIST)
+				{
+					motorControl(speed, -speed);
+				}
+				if (getSensorReading(11) < 1.6 && getSensorReading(11) > 1.5)
+				{
+					state = STOP_AND_WAIT;
+					motorControl(0, 0);
+				}
+				break;
+
+			case STOP_AND_WAIT:
+				motorControl(0, 0);
+				printf("Waiting 5 seconds ... \n");
+				waitms(5000);
+				sensor = fillarr(sensorArray, 15); //create array of sonar reading
+				for(int i = 0; i < 16; i++)
+				{
+					printf("sensor [%d] - %f", i, sensor[i]);
+				}
 			}
 		}
 
@@ -443,7 +472,7 @@ void leftHeading(int heading)
 {
 	simxSetJointTargetVelocity(clientID, leftmotorHandle, -(heading * M_1_PI / 180), simx_opmode_blocking);
 	simxSetJointTargetVelocity(clientID, rightmotorHandle, (heading * M_1_PI / 180), simx_opmode_blocking);
-	printf("Turning");
+	printf("TURNING LEFT \n");
 	waitms(5000);
 }
 
@@ -451,7 +480,7 @@ void rightHeading(int heading)
 {
 	simxSetJointTargetVelocity(clientID, leftmotorHandle, (heading * M_1_PI / 180), simx_opmode_blocking);
 	simxSetJointTargetVelocity(clientID, rightmotorHandle, -(heading * M_1_PI / 180), simx_opmode_blocking);
-	printf("Turning");
+	printf("TURNING RIGHT \n");
 	waitms(5000);
 }
 
@@ -499,3 +528,4 @@ simxFloat findBeacon()
 	return std::sqrt((distance[0] * distance[0]) + (distance[1] * distance[1]) + (distance[2] * distance[2]));
 
 }
+
