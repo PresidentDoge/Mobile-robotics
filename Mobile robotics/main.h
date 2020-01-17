@@ -7,7 +7,7 @@ int beaconHandle;
 int distanceHandle;
 int leftmotorHandle;
 int rightmotorHandle;
-int senorHandle[15];
+int senorHandle[16];
 
 simxFloat beaconPosition[3];
 simxUChar detectionState[1];
@@ -20,7 +20,7 @@ bool followingLeft;
 bool followingRight;
 int currentTime;
 
-enum FSM{WANDER, AVOID, FOLLOW, CENTER_WALL, CENTER_ROOM, STOP_AND_WAIT};
+enum FSM{WANDER, AVOID, FOLLOW, CENTER_WALL, CENTER_ROOM, STOP_AND_WAIT, EXIT, BEACON};
 FSM state;
 
 void motorControl(float leftMotor, float rightMotor);

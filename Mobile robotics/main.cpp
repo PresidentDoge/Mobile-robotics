@@ -46,6 +46,7 @@ int main(int argc, char* argv[])
 		const float STOPPING_DIST = 0.25;    // Minimum distance, takes evasive action
 		const float SAFE_DIST = 0.5;         // Maximum distance threshold of evasive actions 
 		const float FOLLOW_DIST = 0.45;      // Distance maintained from the wall while following
+		const float MAX_SENSOR_RANGE = 4.0f;
 
 		const float MIN_DIST = -0.25f;        // Minimum error distance 
 		const float MAX_DIST = 0.25f;         // Maximum error distance
@@ -284,7 +285,7 @@ int main(int argc, char* argv[])
 						if (((frontSensor - rearSensor) > MIN_DIST) && ((frontSensor - rearSensor) < MAX_DIST))
 						{
 							followingLeft = false;
-							followingRight = false;
+							//followingRight = false;
 							followingWall = false;
 							centering = true;
 							state = CENTER_WALL;
@@ -381,12 +382,8 @@ int main(int argc, char* argv[])
 
 				while (centering)
 				{
-					leftSensor = (getSensorReading(0) + getSensorReading(15)) / 2;
-					rightSensor = (getSensorReading(7) + getSensorReading(8)) / 2;
-					frontSensor = (getSensorReading(3) + getSensorReading(4)) / 2;
-					rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
 
-					if (((leftSensor - rightSensor) > MIN_DIST) && ((leftSensor - rightSensor) < MAX_DIST))
+					if (((getSensorReading(0) - getSensorReading(7)) > MIN_DIST) && ((getSensorReading(0) - getSensorReading(7)) < MAX_DIST))
 					{
 						centering = false;
 						state = CENTER_ROOM;
@@ -394,11 +391,9 @@ int main(int argc, char* argv[])
 					}
 					else if(followingLeft){
 						rightHeading(90);
-						//printf("left sensor - %f : right sensor - %f : error - %f \n", leftSensor, rightSensor, (leftSensor - rightSensor));
 					}
 					else if (followingRight) {
 						leftHeading(90);
-						//printf("left sensor - %f : right sensor - %f : error - %f \n", leftSensor, rightSensor, (leftSensor - rightSensor));
 					}
 				}
 				
@@ -406,34 +401,85 @@ int main(int argc, char* argv[])
 
 			case CENTER_ROOM:
 
+				frontSensor = (getSensorReading(3) + getSensorReading(4)) / 2;
+				rearSensor = (getSensorReading(11) + getSensorReading(12)) / 2;
+
 				motorControl(speed, speed);
 
-				printf("rear left sensor - %f : rear right sensor - %f : error - %f \n", getSensorReading(12), getSensorReading(11), (getSensorReading(11) - getSensorReading(12)));
-				printf("left sensor - %f : right sensor - %f : error - %f \n", leftSensor, rightSensor, (leftSensor - rightSensor));
-
-				if ((leftSensor - rightSensor) > MIN_DIST)
+				/*if ((getSensorReading(0) - getSensorReading(7)) < MIN_DIST)
 				{
 					motorControl(-speed, speed);
+					printf("Turning left \n");
 				}
-				if ((leftSensor - rightSensor) < MAX_DIST)
+				if ((getSensorReading(0) - getSensorReading(7)) > MAX_DIST)
 				{
 					motorControl(speed, -speed);
-				}
-				if (getSensorReading(11) < 1.6 && getSensorReading(11) > 1.5)
+					printf("Turning right \n");
+				}*/
+				if ((rearSensor < 1.6) && (rearSensor > 1.5))
 				{
 					state = STOP_AND_WAIT;
+					printf("STATE CHANGE: STOP_AND_WAIT \n");
 					motorControl(0, 0);
 				}
+				if (frontSensor < SAFE_DIST)
+				{
+					state = AVOID;
+					printf("STATE CHANGE: AVOID \n");
+				}
+
 				break;
 
 			case STOP_AND_WAIT:
-				motorControl(0, 0);
-				printf("Waiting 5 seconds ... \n");
-				waitms(5000);
-				sensor = fillarr(sensorArray, 15); //create array of sonar reading
-				for(int i = 0; i < 16; i++)
+				
+				//printf("%f : %f \n", getSensorReading(3), getSensorReading(4));
+
+				sensor = fillarr(sensorArray, 16); //create array of sonar reading
+				for (int i = 0; i < 16; i++)
 				{
-					printf("sensor [%d] - %f", i, sensor[i]);
+					printf("sensor [%d] - %f \n", i, sensor[i]);
+				}
+				break;
+
+				if (getSensorReading(3) == MAX_SENSOR_RANGE || getSensorReading(4) == MAX_SENSOR_RANGE)
+				{
+					motorControl(0, 0);
+					state = EXIT;
+					printf("STATE CHANGE: EXIT \n");
+				}
+				else
+				{
+					motorControl(speed/2, -speed/2);
+				}
+
+				//waitms(5000);
+
+
+			case EXIT:
+
+				motorControl(speed, speed);
+
+				if ((getSensorReading(0) - getSensorReading(7)) < MIN_DIST)
+				{
+					motorControl(speed, -speed);
+					printf("Turning left \n");
+				}
+				if ((getSensorReading(0) - getSensorReading(7)) > MAX_DIST)
+				{
+					motorControl(-speed, speed);
+					printf("Turning right \n");
+				}
+
+				if (getSensorReading(3) < SAFE_DIST)
+				{
+					state = AVOID;
+					printf("STATE CHANGE: AVOID \n");
+				}
+
+				if ((getSensorReading(0) > MAX_SENSOR_RANGE) && (getSensorReading(7) > MAX_SENSOR_RANGE))
+				{
+					state = BEACON;
+					printf("STATE CHANGE: BEACON \n");
 				}
 			}
 		}
@@ -487,7 +533,7 @@ void rightHeading(int heading)
 float getSensorReading(int sensor)
 {
 	simxReadProximitySensor(clientID, senorHandle[sensor], detectionState, detectedPoint, NULL, NULL, simx_opmode_streaming);
-	float jLength = (unsigned int)detectionState[0] == 1 ? std::sqrt((detectedPoint[0] * detectedPoint[0]) + (detectedPoint[1] * detectedPoint[1]) + (detectedPoint[2] * detectedPoint[2])) : 1.0f;
+	float jLength = (unsigned int)detectionState[0] == 1 ? std::sqrt((detectedPoint[0] * detectedPoint[0]) + (detectedPoint[1] * detectedPoint[1]) + (detectedPoint[2] * detectedPoint[2])) : 4.0f;
 	return jLength;
 }
 
@@ -503,6 +549,7 @@ float * fillarr(float arr[], int length) {
 void waitms(int time)
 {
 	extApi_sleepMs(time);
+	printf("WAITNING FOR %d ms ... \n", time);
 }
 
 float getMean(float sensor1, float sensor2)
